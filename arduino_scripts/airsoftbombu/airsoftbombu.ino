@@ -394,6 +394,8 @@ void bombactive() {
       deactivationMethod = 0;
       armed = false;
       bombState = 4;
+      writeLCD(0, "BOMB EXPLODED!");
+      writeLCD(4, "RAN OUT OF TIME");
       explodesound();
     }
     switch (deactivationMethod) {
