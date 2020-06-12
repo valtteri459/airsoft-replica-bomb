@@ -20,6 +20,7 @@ WIRING DIAGRAM COMING SOON
 4. push buttons, optionally with LED rings (not implemented in current version, just for show but they do light up)
 5. reset button or key switch
 6. arduino mega (wire defuse) or uno/similar (without wire defuse)
+7. some container for it, I use a waterproof generic carrying case with a polycarbonate insert that the components are mounted to, but for this you can go wild
 
 wire defuse requires more GPIO so mega is the only option
 for wire defuse you just need two connector blocks with 8 terminals each, one side connects to gpio pins defined in code, other side to ground (in pullup mode)
