@@ -27,8 +27,8 @@ unsigned long bombDuration = 60000;
 unsigned long targetTime = 0;
 
 
-#define BLUE_SW 22
-#define BLUE_LED 24
+#define green_SW 22
+#define green_LED 24
 #define YELLOW_SW 26
 #define YELLOW_LED 28
 #define RED_SW 30
@@ -50,22 +50,31 @@ Adafruit_Keypad customKeypad = Adafruit_Keypad( makeKeymap(keys), rowPins, colPi
 
 void setup() {
   // put your setup code here, to run once:
-  pinMode(BLUE_SW, INPUT_PULLUP);
+  pinMode(green_SW, INPUT_PULLUP);
   pinMode(YELLOW_SW, INPUT_PULLUP);
   pinMode(RED_SW, INPUT_PULLUP);
 
-  pinMode(BLUE_LED, OUTPUT);
+  pinMode(green_LED, OUTPUT);
   pinMode(YELLOW_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
 
-  pinMode(WIRE0, INPUT_PULLUP);
-  pinMode(WIRE1, INPUT_PULLUP);
-  pinMode(WIRE2, INPUT_PULLUP);
-  pinMode(WIRE3, INPUT_PULLUP);
-  pinMode(WIRE4, INPUT_PULLUP);
-  pinMode(WIRE5, INPUT_PULLUP);
-  pinMode(WIRE6, INPUT_PULLUP);
-  pinMode(WIRE7, INPUT_PULLUP);
+  pinMode(WIRE0, OUTPUT);
+  pinMode(WIRE1, OUTPUT);
+  pinMode(WIRE2, OUTPUT);
+  pinMode(WIRE3, OUTPUT);
+  pinMode(WIRE4, OUTPUT);
+  pinMode(WIRE5, OUTPUT);
+  pinMode(WIRE6, OUTPUT);
+  pinMode(WIRE7, OUTPUT);
+
+  digitalWrite(WIRE0, LOW);
+  digitalWrite(WIRE1, LOW);
+  digitalWrite(WIRE2, LOW);
+  digitalWrite(WIRE3, LOW);
+  digitalWrite(WIRE4, LOW);
+  digitalWrite(WIRE5, LOW);
+  digitalWrite(WIRE6, LOW);
+  digitalWrite(WIRE7, LOW);
 
   pinMode(LOWBEEP, OUTPUT);
   pinMode(HIGHBEEP, OUTPUT);
@@ -73,7 +82,7 @@ void setup() {
   digitalWrite(LOWBEEP, LOW);
   digitalWrite(HIGHBEEP, LOW);
   digitalWrite(RED_LED, HIGH);
-  digitalWrite(BLUE_LED, HIGH);
+  digitalWrite(green_LED, HIGH);
   digitalWrite(YELLOW_LED, HIGH);
 
   lcd.init();                      // initialize the lcd
@@ -83,10 +92,10 @@ void setup() {
   lcd.clear();
   customKeypad.begin();
 }
-/*if(digitalRead(BLUE_SW)){
-      digitalWrite(BLUE_LED, HIGH);
+/*if(digitalRead(green_SW)){
+      digitalWrite(green_LED, HIGH);
     } else {
-      digitalWrite(BLUE_LED, LOW);
+      digitalWrite(green_LED, LOW);
       bombState = 2;
     }*/
 void loop() {
@@ -250,6 +259,14 @@ void setCode() {
   setCodeTries();
 }
 void setWires() {
+  pinMode(WIRE0, INPUT_PULLUP);
+  pinMode(WIRE1, INPUT_PULLUP);
+  pinMode(WIRE2, INPUT_PULLUP);
+  pinMode(WIRE3, INPUT_PULLUP);
+  pinMode(WIRE4, INPUT_PULLUP);
+  pinMode(WIRE5, INPUT_PULLUP);
+  pinMode(WIRE6, INPUT_PULLUP);
+  pinMode(WIRE7, INPUT_PULLUP);
   lcd.clear();
   for (int i = 0; i <= 7; i++) {
     writeLCD(0, "Set mode for wire " + (String)i);
@@ -310,17 +327,17 @@ void setBombTime() {
 void preplant() {
   bool planted = false;
   writeLCD(0, "-Waiting for plant--");
-  writeLCD(3, "blue+red for " + (String)plantTime + "s");
+  writeLCD(3, "green+red for " + (String)plantTime + "s");
   unsigned long pressedAt = 0;
   bool buttonReleased = false;
   byte lastred = 0;
-  byte lastblue = 0;
+  byte lastgreen = 0;
   int lastseconds = -1;
   while (!planted) {
-    bool bluestate = !digitalRead(BLUE_SW);
+    bool greenstate = !digitalRead(green_SW);
     bool redstate = !digitalRead(RED_SW);
-    if ((bluestate != lastblue) || (redstate != lastred)) {
-      if (bluestate && redstate) {
+    if ((greenstate != lastgreen) || (redstate != lastred)) {
+      if (greenstate && redstate) {
         buttonReleased = false;
         pressedAt = millis();
         writeLCD(2, "HOLD");
@@ -328,8 +345,8 @@ void preplant() {
         buttonReleased = true;
       }
     }
-    lastred = bluestate;
-    lastblue = redstate;
+    lastred = greenstate;
+    lastgreen = redstate;
     long diff = millis() - pressedAt;
     int seconds = round(diff / 1000);
     int secondsleft = plantTime - seconds;
@@ -418,17 +435,17 @@ String enteredcode = "";
 unsigned long defusePressedAt = 0;
 bool defuseButtonsReleased = true;
 byte lastDefuseYellow = 0;
-byte lastDefuseBlue = 0;
+byte lastDefusegreen = 0;
 bool doFreshPrint = false;
 bool readymsg = false;
 int lastDefuseSeconds = -1;
 void checkcode() {
   if (armed) { //no need to run if already blown up
       // start defuse decryptor
-      bool bluestate = !digitalRead(BLUE_SW);
-      bool yellowstate = !digitalRead(BLUE_SW);
-      if ((bluestate != lastDefuseBlue) || (yellowstate != lastDefuseYellow)) {
-        if (yellowstate && bluestate && defuseTime > 0) {
+      bool greenstate = !digitalRead(green_SW);
+      bool yellowstate = !digitalRead(green_SW);
+      if ((greenstate != lastDefusegreen) || (yellowstate != lastDefuseYellow)) {
+        if (yellowstate && greenstate && defuseTime > 0) {
           defuseButtonsReleased = false;
           defusePressedAt = millis();
           enteredcode = "";
@@ -440,7 +457,7 @@ void checkcode() {
       }
       
       lastDefuseYellow = yellowstate;
-      lastDefuseBlue = bluestate;
+      lastDefusegreen = greenstate;
 
       
       if (defuseButtonsReleased) {
