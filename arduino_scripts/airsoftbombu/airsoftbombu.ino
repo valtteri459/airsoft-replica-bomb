@@ -25,6 +25,7 @@ int plantTime = 0;
 int codeTries = 0;
 unsigned long bombDuration = 60000;
 unsigned long targetTime = 0;
+bool plantWithCode = false;
 
 
 #define green_SW 22
@@ -124,7 +125,9 @@ void loop() {
         deactivationMethod = 2;//Code
 
         setCode();
-        setPlantTime();
+        if (!plantWithCode) {
+          setPlantTime();
+        }
         setBombTime();
         lcd.clear();
         writeLCD(0, "OK, game on!");
@@ -137,7 +140,9 @@ void loop() {
 
         setCode();
         setWires();
-        setPlantTime();
+        if (!plantWithCode) {
+          setPlantTime();
+        }
         setBombTime();
         lcd.clear();
         writeLCD(0, "OK, game on!");
@@ -195,7 +200,7 @@ char getKey() {
 /**BOMB FUNCTIONS*/
 void setDefuseTime() {
   bool okCode = false;
-  String tempcode = "0";
+  String tempcode = "1";
   lcd.clear();
   writeLCD(0, "Code reveal (sec):");
   writeLCD(2, "0 = feature disabled");
@@ -215,6 +220,27 @@ void setDefuseTime() {
   }
   defuseTime = tempcode.toInt();
   lcd.clear();
+}
+void setPlantMode() {
+  bool okCode = false;
+  while (!okCode) {
+    writeLCD(0, "Set plant mode");
+    writeLCD(1, "1)button 2)code");
+    char temp = getKey();
+    int res = ((String)temp).toInt();
+    if (res < 1 || res > 2) {
+      lcd.clear();
+      writeLCD(0, "invalid argument");
+      delay(500);
+    } else {
+      if (res == 1) {
+        plantWithCode = false;
+      } else {
+        plantWithCode = true;
+      }
+      okCode = true;
+    }
+  }
 }
 void setCodeTries() {
   bool okCode = false;
@@ -237,7 +263,7 @@ void setCodeTries() {
   codeTries = tempcode.toInt();
 }
 void setCode() {
-  deactivationCode = "123";
+  deactivationCode = "4528";
   boolean okCode = false;
   lcd.clear();
   writeLCD(0, "Set code:");
@@ -255,6 +281,7 @@ void setCode() {
     }
   }
   lcd.clear();
+  setPlantMode();
   setDefuseTime();
   setCodeTries();
 }
@@ -327,56 +354,109 @@ void setBombTime() {
 void preplant() {
   bool planted = false;
   writeLCD(0, "-Waiting for plant--");
-  writeLCD(3, "green+red for " + (String)plantTime + "s");
+  if (plantWithCode) {
+    writeLCD(3, "code:" + deactivationCode);
+  } else {
+    writeLCD(3, "red+green for " + (String)plantTime + "s");
+  }
   unsigned long pressedAt = 0;
-  bool buttonReleased = false;
+  bool buttonReleased = true;
   byte lastred = 0;
   byte lastgreen = 0;
   int lastseconds = -1;
+  unsigned long lastbeep = 0;
+  bool readytoplant = false;
+  String plantcode = "";
   while (!planted) {
-    bool greenstate = !digitalRead(green_SW);
-    bool redstate = !digitalRead(RED_SW);
-    if ((greenstate != lastgreen) || (redstate != lastred)) {
-      if (greenstate && redstate) {
-        buttonReleased = false;
-        pressedAt = millis();
-        writeLCD(2, "HOLD");
-      } else {
-        buttonReleased = true;
+    if (!plantWithCode) {
+      bool greenstate = !digitalRead(green_SW);
+      bool redstate = !digitalRead(RED_SW);
+      if ((greenstate != lastgreen) || (redstate != lastred)) {
+        if (greenstate && redstate) {
+          buttonReleased = false;
+          pressedAt = millis();
+          writeLCD(2, "HOLD");
+        } else {
+          buttonReleased = true;
+        }
       }
-    }
-    lastred = greenstate;
-    lastgreen = redstate;
-    long diff = millis() - pressedAt;
-    int seconds = round(diff / 1000);
-    int secondsleft = plantTime - seconds;
-    if (secondsleft != lastseconds && pressedAt > 0 && diff <= plantTime * 1000) {
-      digitalWrite(LOWBEEP, HIGH);
-      delay(50);
-      digitalWrite(LOWBEEP, LOW);
-      lastseconds = secondsleft;
-    }
-    if (secondsleft >= 0  && pressedAt > 0) {
-      writeLCD(1, (String)secondsleft);
-    }
-    if (diff > plantTime * 1000 && pressedAt > 0) {
-      writeLCD(2, "RELEASE TO PLANT");
-      digitalWrite(LOWBEEP, HIGH);
-    }
-    if (buttonReleased) {
-      if (diff > plantTime * 1000 && pressedAt > 0) {
+      lastred = greenstate;
+      lastgreen = redstate;
+      long diff = millis() - pressedAt;
+      int seconds = round(diff / 1000);
+      int secondsleft = plantTime - seconds;
+      if (secondsleft != lastseconds && pressedAt > 0 && diff <= plantTime * 1000) {
+        digitalWrite(LOWBEEP, HIGH);
+        delay(50);
         digitalWrite(LOWBEEP, LOW);
-        lcd.clear();
-        delay(100);
-        writeLCD(0, " PLANTED");
-        planted = true;
-        bombState = 2;
-        delay(1000);
-      } else {
-        writeLCD(2, "PRESS");
+        lastseconds = secondsleft;
       }
-      buttonReleased = false;
-      pressedAt = 0;
+      if (secondsleft >= 0  && pressedAt > 0) {
+        writeLCD(1, (String)secondsleft);
+      }
+      if (diff > plantTime * 1000 && pressedAt > 0) {
+        readytoplant = true;
+        writeLCD(2, "RELEASE TO PLANT");
+        digitalWrite(LOWBEEP, HIGH);
+      }
+      if (buttonReleased) {
+        if (diff > plantTime * 1000 && readytoplant) {
+          digitalWrite(LOWBEEP, LOW);
+          lcd.clear();
+          delay(100);
+          writeLCD(0, " PLANTED");
+          planted = true;
+          bombState = 2;
+          delay(1000);
+        } else {
+          writeLCD(2, "PRESS GREEN+RED");
+          if ((lastbeep+2000) < millis()) {
+            digitalWrite(LOWBEEP, HIGH);
+            delay(20);
+            digitalWrite(LOWBEEP, LOW);
+            lastbeep = millis();
+          }
+        }
+        pressedAt = 0;
+      }
+    } else {
+      customKeypad.tick();
+      while (customKeypad.available()) {
+        keypadEvent e = customKeypad.read();
+        if (e.bit.EVENT == KEY_JUST_PRESSED) {
+          digitalWrite(LOWBEEP, HIGH);
+          char temp = (char)e.bit.KEY;
+          if (temp == '#' && plantcode.length() > 2) {
+            if (plantcode == deactivationCode) {
+              writeLCD(0, " PLANTED");
+              planted = true;
+              bombState = 2;
+              digitalWrite(HIGHBEEP, HIGH);
+              delay(150);
+              digitalWrite(HIGHBEEP, LOW);
+              delay(1000);
+            } else {
+              writeLCD(2, "WRONG CODE");
+            }
+            plantcode = "";
+          } else if (temp == '*') {
+            plantcode = plantcode.substring(0, plantcode.length() - 1);
+            writeLCD(2, plantcode);
+          } else {
+            plantcode += temp;
+            writeLCD(2, plantcode);
+          }
+  
+          delay(50);
+          digitalWrite(LOWBEEP, LOW);
+        }
+      }
+      if ((lastbeep+2000) < millis()) {
+        digitalWrite(LOWBEEP, HIGH);
+        delay(20);
+        digitalWrite(LOWBEEP, LOW);
+        lastbeep = millis();
+      }
     }
   }
 }
@@ -399,13 +479,18 @@ void bombactive() {
       break;
   }
   while (armed) {
-    int secondsleft = (long)((targetTime + bombDuration) - millis()) / 1000;
-    if (secondsleft != lastseconds) {
-      writeLCD(1, "    " + (String)((int)(secondsleft / 60)) + ":" + (String)(secondsleft % 60));
+    int hsecondsleft = (long)((targetTime + bombDuration) - millis()) / 500;
+    int secondsleft = hsecondsleft / 2;
+    if (hsecondsleft != lastseconds) {
+      String ssleft = (String)(secondsleft % 60);
+      if (ssleft.length() < 2) {
+        ssleft = "0" + ssleft;
+      }
+      writeLCD(1, "    " + (String)((int)(secondsleft / 60)) + ":" + ssleft);
       digitalWrite(HIGHBEEP, HIGH);
-      delay(50);
+      delay(75);
       digitalWrite(HIGHBEEP, LOW);
-      lastseconds = secondsleft;
+      lastseconds = hsecondsleft;
     }
     if (secondsleft <= 0) {
       deactivationMethod = 0;
@@ -443,7 +528,7 @@ void checkcode() {
   if (armed) { //no need to run if already blown up
       // start defuse decryptor
       bool greenstate = !digitalRead(green_SW);
-      bool yellowstate = !digitalRead(green_SW);
+      bool yellowstate = !digitalRead(YELLOW_SW);
       if ((greenstate != lastDefusegreen) || (yellowstate != lastDefuseYellow)) {
         if (yellowstate && greenstate && defuseTime > 0) {
           defuseButtonsReleased = false;
