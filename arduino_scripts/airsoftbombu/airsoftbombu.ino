@@ -186,13 +186,11 @@ char getKey() {
     while (customKeypad.available()) {
       keypadEvent e = customKeypad.read();
       if (e.bit.EVENT == KEY_JUST_PRESSED) {
-        digitalWrite(LOWBEEP, HIGH);
+        tone(LOWBEEP, 1000, 50);
         key = (char)e.bit.KEY;
         nokey = false;
       }
     }
-    delay(50);
-    digitalWrite(LOWBEEP, LOW);
   }
   return key;
 }
@@ -386,9 +384,7 @@ void preplant() {
       int seconds = round(diff / 1000);
       int secondsleft = plantTime - seconds;
       if (secondsleft != lastseconds && pressedAt > 0 && diff <= plantTime * 1000) {
-        digitalWrite(LOWBEEP, HIGH);
-        delay(50);
-        digitalWrite(LOWBEEP, LOW);
+        tone(LOWBEEP, 1000, 50);
         lastseconds = secondsleft;
       }
       if (secondsleft >= 0  && pressedAt > 0) {
@@ -397,11 +393,11 @@ void preplant() {
       if (diff > plantTime * 1000 && pressedAt > 0) {
         readytoplant = true;
         writeLCD(2, "RELEASE TO PLANT");
-        digitalWrite(LOWBEEP, HIGH);
+        tone(LOWBEEP, 1000);
       }
       if (buttonReleased) {
         if (diff > plantTime * 1000 && readytoplant) {
-          digitalWrite(LOWBEEP, LOW);
+          noTone(LOWBEEP);
           lcd.clear();
           delay(100);
           writeLCD(0, " PLANTED");
@@ -411,9 +407,7 @@ void preplant() {
         } else {
           writeLCD(2, "PRESS GREEN+RED");
           if ((lastbeep+2000) < millis()) {
-            digitalWrite(LOWBEEP, HIGH);
-            delay(20);
-            digitalWrite(LOWBEEP, LOW);
+            tone(LOWBEEP, 2000, 20);
             lastbeep = millis();
           }
         }
@@ -424,16 +418,14 @@ void preplant() {
       while (customKeypad.available()) {
         keypadEvent e = customKeypad.read();
         if (e.bit.EVENT == KEY_JUST_PRESSED) {
-          digitalWrite(LOWBEEP, HIGH);
+          tone(LOWBEEP, 1000, 50);
           char temp = (char)e.bit.KEY;
           if (temp == '#' && plantcode.length() > 2) {
             if (plantcode == deactivationCode) {
               writeLCD(0, " PLANTED");
               planted = true;
               bombState = 2;
-              digitalWrite(HIGHBEEP, HIGH);
-              delay(150);
-              digitalWrite(HIGHBEEP, LOW);
+              tone(HIGHBEEP, 1000, 150);
               delay(1000);
             } else {
               writeLCD(2, "WRONG CODE");
@@ -446,15 +438,10 @@ void preplant() {
             plantcode += temp;
             writeLCD(2, plantcode);
           }
-  
-          delay(50);
-          digitalWrite(LOWBEEP, LOW);
         }
       }
       if ((lastbeep+2000) < millis()) {
-        digitalWrite(LOWBEEP, HIGH);
-        delay(20);
-        digitalWrite(LOWBEEP, LOW);
+        tone(LOWBEEP, 1000, 20);
         lastbeep = millis();
       }
     }
@@ -487,9 +474,7 @@ void bombactive() {
         ssleft = "0" + ssleft;
       }
       writeLCD(1, "    " + (String)((int)(secondsleft / 60)) + ":" + ssleft);
-      digitalWrite(HIGHBEEP, HIGH);
-      delay(75);
-      digitalWrite(HIGHBEEP, LOW);
+      tone(HIGHBEEP, 3000, 75);
       lastseconds = hsecondsleft;
     }
     if (secondsleft <= 0) {
@@ -548,14 +533,14 @@ void checkcode() {
       if (defuseButtonsReleased) {
         if (doFreshPrint) {
           doFreshPrint = false;
-          digitalWrite(LOWBEEP, LOW);
+          noTone(LOWBEEP);
           writeLCD(2, enteredcode);
         }
         customKeypad.tick();
         while (customKeypad.available()) {
           keypadEvent e = customKeypad.read();
           if (e.bit.EVENT == KEY_JUST_PRESSED) {
-            digitalWrite(LOWBEEP, HIGH);
+            tone(LOWBEEP, 1000, 50);
             char temp = (char)e.bit.KEY;
             if (temp == '#' && enteredcode.length() > 2) {
               if (enteredcode == deactivationCode) {
@@ -585,9 +570,6 @@ void checkcode() {
               enteredcode += temp;
               writeLCD(2, enteredcode);
             }
-    
-            delay(50);
-            digitalWrite(LOWBEEP, LOW);
           }
         }
         // end keypad and code entry 
@@ -596,9 +578,7 @@ void checkcode() {
         int seconds = round(diff / 1000);
         int secondsleft = (defuseTime * deactivationCode.length()) - seconds;
         if (secondsleft != lastDefuseSeconds && defusePressedAt > 0 && diff <= (defuseTime * deactivationCode.length()) * 1000) {
-          digitalWrite(LOWBEEP, HIGH);
-          delay(50);
-          digitalWrite(LOWBEEP, LOW);
+          tone(LOWBEEP, 1000, 50);
           lastDefuseSeconds = secondsleft;
         }
         if (secondsleft >= 0  && defusePressedAt > 0) {
@@ -615,7 +595,7 @@ void checkcode() {
             (3, "DECODE COMPLETE");
             readymsg = true;
           }
-          digitalWrite(LOWBEEP, HIGH);
+          tone(LOWBEEP, 100);
         } else {
           readymsg = false;
         }
@@ -626,35 +606,23 @@ void checkcode() {
 void halftime() {
    long msleft = (long)((targetTime + bombDuration) - millis());
    targetTime -= (msleft / 2);
-   digitalWrite(LOWBEEP, HIGH);
-   delay(50);
-   digitalWrite(LOWBEEP, LOW);
+   tone(LOWBEEP, 1000, 50);
    delay(100);
-   digitalWrite(LOWBEEP, HIGH);
-   delay(50);
-   digitalWrite(LOWBEEP, LOW);
+   tone(LOWBEEP, 1000, 50);
    delay(100);
-   digitalWrite(LOWBEEP, HIGH);
-   delay(50);
-   digitalWrite(LOWBEEP, LOW);
+   tone(LOWBEEP, 1000, 50);
 }
 void explodesound() {
   for(int i = 0;i<10;i++){
-    digitalWrite(LOWBEEP, HIGH);
-    digitalWrite(HIGHBEEP, LOW);
-    delay(100);
-    digitalWrite(LOWBEEP, LOW);
-    digitalWrite(HIGHBEEP, HIGH);
+    tone(HIGHBEEP, 100, 150);
     delay(200);
-    digitalWrite(LOWBEEP, HIGH);
-    digitalWrite(HIGHBEEP, LOW);
-    delay(100);
-    digitalWrite(LOWBEEP, LOW);
-    digitalWrite(HIGHBEEP, HIGH);
+    tone(HIGHBEEP, 2000, 150);
+    delay(200);
+    tone(HIGHBEEP, 100, 150);
+    delay(200);
+    tone(HIGHBEEP, 2000, 150);
     delay(200);
   }
-  digitalWrite(LOWBEEP, LOW);
-  digitalWrite(HIGHBEEP, LOW);
 }
 bool tripped[] = {false, false, false, false, false, false, false, false};
 void checkwires() {
