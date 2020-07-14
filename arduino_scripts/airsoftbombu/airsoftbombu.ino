@@ -28,10 +28,10 @@ unsigned long targetTime = 0;
 bool plantWithCode = false;
 
 
-#define green_SW 22
-#define green_LED 24
-#define YELLOW_SW 26
-#define YELLOW_LED 28
+#define SAFETY_SW 22
+#define SAFETY_LED 24
+#define GREEN_SW 26
+#define GREEN_LED 28
 #define RED_SW 30
 #define RED_LED 32
 
@@ -45,18 +45,18 @@ bool plantWithCode = false;
 #define WIRE7 33
 
 #define LOWBEEP 12
-#define HIGHBEEP 13
+#define HIGHBEEP 2
 
 Adafruit_Keypad customKeypad = Adafruit_Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 void setup() {
   // put your setup code here, to run once:
-  pinMode(green_SW, INPUT_PULLUP);
-  pinMode(YELLOW_SW, INPUT_PULLUP);
+  pinMode(SAFETY_SW, INPUT_PULLUP);
+  pinMode(GREEN_SW, INPUT_PULLUP);
   pinMode(RED_SW, INPUT_PULLUP);
 
-  pinMode(green_LED, OUTPUT);
-  pinMode(YELLOW_LED, OUTPUT);
+  pinMode(SAFETY_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
 
   pinMode(WIRE0, OUTPUT);
@@ -82,9 +82,9 @@ void setup() {
 
   digitalWrite(LOWBEEP, LOW);
   digitalWrite(HIGHBEEP, LOW);
-  digitalWrite(RED_LED, HIGH);
-  digitalWrite(green_LED, HIGH);
-  digitalWrite(YELLOW_LED, HIGH);
+  /*digitalWrite(RED_LED, HIGH);
+  digitalWrite(SAFETY_LED, HIGH);
+  digitalWrite(GREEN_LED, HIGH);*/
 
   lcd.init();                      // initialize the lcd
   lcd.backlight();
@@ -93,10 +93,10 @@ void setup() {
   lcd.clear();
   customKeypad.begin();
 }
-/*if(digitalRead(green_SW)){
-      digitalWrite(green_LED, HIGH);
+/*if(digitalRead(SAFETY_SW)){
+      digitalWrite(SAFETY_LED, HIGH);
     } else {
-      digitalWrite(green_LED, LOW);
+      digitalWrite(SAFETY_LED, LOW);
       bombState = 2;
     }*/
 void loop() {
@@ -108,6 +108,7 @@ void loop() {
       lcd.setCursor(0, 0);
       writeLCD(0, "Choose method:");
       writeLCD(1, "1)Wire 2)Code 3)Both");
+      writeLCD(2, "4)Simple 5)Flag");
       keypressed = getKey();
       if (keypressed == '1') {
         deactivationMethod = 1;//Wire
@@ -150,6 +151,21 @@ void loop() {
         bombState = 1;
         delay(1000);
         lcd.clear();
+      } else if (keypressed == '4') {
+        deactivationMethod = 4; //simple: hold button  
+        setPlantTime();
+        setDefuseTime();
+        setBombTime();
+        
+        lcd.clear();
+        writeLCD(0, "OK, game on!");
+        bombState = 1;
+        delay(1000);
+        lcd.clear();
+      } else if (keypressed == '5') {
+        lcd.clear();
+        writeLCD(0, "not yet implemented");
+        delay(1000);
       } else {
         lcd.clear();
         writeLCD(0, "Invalid option");
@@ -167,6 +183,7 @@ void loop() {
       break;
 
     case 3: // defused
+      button_noises();
       break;
 
     case 4: //exploded
@@ -176,6 +193,17 @@ void loop() {
       writeLCD(1, "ERRORING TO DEFAULT");
       break;
   }
+}
+
+void button_noises() {
+   bool SAFETYstate = !digitalRead(SAFETY_SW);
+   bool ARMState = !digitalRead(RED_SW);
+   bool DISARMState= !digitalRead(GREEN_SW);
+   if (SAFETYstate || ARMState || DISARMState) {
+    tone(LOWBEEP, 100);
+   } else {
+    noTone(LOWBEEP);
+   }
 }
 
 char getKey() {
@@ -200,9 +228,9 @@ void setDefuseTime() {
   bool okCode = false;
   String tempcode = "1";
   lcd.clear();
-  writeLCD(0, "Code reveal (sec):");
+  writeLCD(0, "defuse time (sec):");
   writeLCD(2, "0 = feature disabled");
-  writeLCD(3, "this is per digit");
+  writeLCD(3, "in code = per digit");
   writeLCD(1, tempcode);
   while (!okCode) {
     char temp = getKey();
@@ -355,22 +383,22 @@ void preplant() {
   if (plantWithCode) {
     writeLCD(3, "code:" + deactivationCode);
   } else {
-    writeLCD(3, "red+green for " + (String)plantTime + "s");
+    writeLCD(3, "red+SAFETY for " + (String)plantTime + "s");
   }
   unsigned long pressedAt = 0;
   bool buttonReleased = true;
   byte lastred = 0;
-  byte lastgreen = 0;
+  byte lastSAFETY = 0;
   int lastseconds = -1;
   unsigned long lastbeep = 0;
   bool readytoplant = false;
   String plantcode = "";
   while (!planted) {
     if (!plantWithCode) {
-      bool greenstate = !digitalRead(green_SW);
+      bool SAFETYstate = !digitalRead(SAFETY_SW);
       bool redstate = !digitalRead(RED_SW);
-      if ((greenstate != lastgreen) || (redstate != lastred)) {
-        if (greenstate && redstate) {
+      if ((SAFETYstate != lastSAFETY) || (redstate != lastred)) {
+        if (SAFETYstate && redstate) {
           buttonReleased = false;
           pressedAt = millis();
           writeLCD(2, "HOLD");
@@ -378,8 +406,8 @@ void preplant() {
           buttonReleased = true;
         }
       }
-      lastred = greenstate;
-      lastgreen = redstate;
+      lastred = SAFETYstate;
+      lastSAFETY = redstate;
       long diff = millis() - pressedAt;
       int seconds = round(diff / 1000);
       int secondsleft = plantTime - seconds;
@@ -405,7 +433,7 @@ void preplant() {
           bombState = 2;
           delay(1000);
         } else {
-          writeLCD(2, "PRESS GREEN+RED");
+          writeLCD(2, "PRESS SAFETY+RED");
           if ((lastbeep+2000) < millis()) {
             tone(LOWBEEP, 2000, 20);
             lastbeep = millis();
@@ -464,6 +492,9 @@ void bombactive() {
     case 3:
       writeLCD(3, "WIRES+CODE");
       break;
+    case 4:
+      writeLCD(3, "SIMPLE");
+      break;
   }
   while (armed) {
     int hsecondsleft = (long)((targetTime + bombDuration) - millis()) / 500;
@@ -496,6 +527,9 @@ void bombactive() {
         checkwires();
         checkcode();
         break;
+      case 4:
+        checksimple();
+        break;
     }
   }
 }
@@ -504,30 +538,104 @@ String enteredcode = "";
 
 unsigned long defusePressedAt = 0;
 bool defuseButtonsReleased = true;
-byte lastDefuseYellow = 0;
-byte lastDefusegreen = 0;
+byte lastDefuseGREEN = 0;
+byte lastDefuseSAFETY = 0;
 bool doFreshPrint = false;
 bool readymsg = false;
 int lastDefuseSeconds = -1;
-void checkcode() {
+bool greenDetected = false;
+void checksimple() {
   if (armed) { //no need to run if already blown up
       // start defuse decryptor
-      bool greenstate = !digitalRead(green_SW);
-      bool yellowstate = !digitalRead(YELLOW_SW);
-      if ((greenstate != lastDefusegreen) || (yellowstate != lastDefuseYellow)) {
-        if (yellowstate && greenstate && defuseTime > 0) {
+      bool SAFETYstate = !digitalRead(SAFETY_SW);
+      bool GREENstate = !digitalRead(GREEN_SW);
+      if (greenDetected) {
+        GREENstate = true;
+      }
+      if ((SAFETYstate != lastDefuseSAFETY) || (GREENstate != lastDefuseGREEN)) {
+        if (GREENstate && SAFETYstate) {
+          greenDetected = true;
           defuseButtonsReleased = false;
           defusePressedAt = millis();
           enteredcode = "";
           writeLCD(2, enteredcode);
           writeLCD(3, "DECRYPTING...");
         } else {
+          greenDetected = false;
           defuseButtonsReleased = true;
         }
       }
       
-      lastDefuseYellow = yellowstate;
-      lastDefusegreen = greenstate;
+      lastDefuseGREEN = GREENstate;
+      lastDefuseSAFETY = SAFETYstate;
+
+      
+      if (defuseButtonsReleased) {
+        if (doFreshPrint) {
+          doFreshPrint = false;
+          noTone(LOWBEEP);
+        }
+        if (defusePressedAt > 0) {
+          if (round((millis() - defusePressedAt) / 1000) > defuseTime) {
+              writeLCD(0, "BOMB DEFUSED");
+              writeLCD(3, "CORRECT! DEFUSED!");
+              armed = false;
+              bombState = 3;
+          } else {
+            writeLCD(0, "DEFUSE FAILED");
+            writeLCD(3, "TRY AGAIN - HOLD LONGER");
+          }
+        }
+      } else if (defuseTime > 0) {
+        long diff = millis() - defusePressedAt;
+        int seconds = round(diff / 1000);
+        int secondsleft = (defuseTime) - seconds;
+        if (secondsleft != lastDefuseSeconds && defusePressedAt > 0 && diff <= (defuseTime) * 1000) {
+          tone(LOWBEEP, 1000, 50);
+          lastDefuseSeconds = secondsleft;
+        }
+        if (secondsleft >= 0  && defusePressedAt > 0) {
+          doFreshPrint = true;
+          writeLCD(0, "DEFUSING");
+          writeLCD(3, (String)secondsleft + " seconds left");
+        }
+        if (diff > (defuseTime) * 1000 && defusePressedAt > 0) {
+          if (!readymsg) {
+            (3, "DEFUSE COMPLETE");
+            readymsg = true;
+          }
+          tone(LOWBEEP, 100);
+        } else {
+          readymsg = false;
+        }
+    }
+  }
+   // end defuse decryptor
+}
+void checkcode() {
+  if (armed) { //no need to run if already blown up
+      // start defuse decryptor
+      bool SAFETYstate = !digitalRead(SAFETY_SW);
+      bool GREENstate = !digitalRead(GREEN_SW);
+      if (greenDetected) {
+        GREENstate = true;
+      }
+      if ((SAFETYstate != lastDefuseSAFETY) || (GREENstate != lastDefuseGREEN)) {
+        if (GREENstate && SAFETYstate && defuseTime > 0) {
+          defuseButtonsReleased = false;
+          greenDetected = true;
+          defusePressedAt = millis();
+          enteredcode = "";
+          writeLCD(2, enteredcode);
+          writeLCD(3, "DECRYPTING...");
+        } else {
+          greenDetected = false;
+          defuseButtonsReleased = true;
+        }
+      }
+      
+      lastDefuseGREEN = GREENstate;
+      lastDefuseSAFETY = SAFETYstate;
 
       
       if (defuseButtonsReleased) {
