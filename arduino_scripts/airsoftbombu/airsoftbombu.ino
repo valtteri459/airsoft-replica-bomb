@@ -453,7 +453,7 @@ void preplant() {
               writeLCD(0, " PLANTED");
               planted = true;
               bombState = 2;
-              tone(HIGHBEEP, 1000, 150);
+              tone(HIGHBEEP, 2800, 150);
               delay(1000);
             } else {
               writeLCD(2, "WRONG CODE");
@@ -505,7 +505,7 @@ void bombactive() {
         ssleft = "0" + ssleft;
       }
       writeLCD(1, "    " + (String)((int)(secondsleft / 60)) + ":" + ssleft);
-      tone(HIGHBEEP, 3000, 75);
+      tone(HIGHBEEP, 2800, 75);
       lastseconds = hsecondsleft;
     }
     if (secondsleft <= 0) {
@@ -722,13 +722,13 @@ void halftime() {
 }
 void explodesound() {
   for(int i = 0;i<10;i++){
-    tone(HIGHBEEP, 100, 150);
+    tone(HIGHBEEP, 3000, 150);
     delay(200);
-    tone(HIGHBEEP, 2000, 150);
+    tone(HIGHBEEP, 2400, 150);
     delay(200);
-    tone(HIGHBEEP, 100, 150);
+    tone(HIGHBEEP, 3000, 150);
     delay(200);
-    tone(HIGHBEEP, 2000, 150);
+    tone(HIGHBEEP, 2400, 150);
     delay(200);
   }
 }
