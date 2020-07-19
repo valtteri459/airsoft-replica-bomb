@@ -202,8 +202,6 @@ void loop() {
       break;
 
     case 4: //exploded
-      reset_lights();
-      digitalWrite(RED_LED, HIGH);
       break;
     case 5:
       domination();
@@ -622,6 +620,7 @@ void bombactive() {
       }
       writeLCD(1, "    " + (String)((int)(secondsleft / 60)) + ":" + ssleft);
       tone(HIGHBEEP, 2800, 75);
+      digitalWrite(GREEN_LED, !digitalRead(GREEN_LED));
       lastseconds = hsecondsleft;
     }
     if (secondsleft <= 0) {
@@ -837,6 +836,8 @@ void halftime() {
    tone(LOWBEEP, 3000, 50);
 }
 void explodesound() {
+  reset_lights();
+  digitalWrite(RED_LED, HIGH);
   for(int i = 0;i<10;i++){
     tone(HIGHBEEP, 3000, 150);
     delay(200);
