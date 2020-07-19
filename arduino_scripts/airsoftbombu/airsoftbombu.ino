@@ -82,9 +82,9 @@ void setup() {
 
   digitalWrite(LOWBEEP, LOW);
   digitalWrite(HIGHBEEP, LOW);
-  /*digitalWrite(RED_LED, HIGH);
+  digitalWrite(RED_LED, HIGH);
   digitalWrite(SAFETY_LED, HIGH);
-  digitalWrite(GREEN_LED, HIGH);*/
+  digitalWrite(GREEN_LED, HIGH);
 
   lcd.init();                      // initialize the lcd
   lcd.backlight();
@@ -99,6 +99,11 @@ void setup() {
       digitalWrite(SAFETY_LED, LOW);
       bombState = 2;
     }*/
+void reset_lights() {
+  digitalWrite(RED_LED, LOW);
+  digitalWrite(SAFETY_LED, LOW);
+  digitalWrite(GREEN_LED, LOW);
+}
 void loop() {
   // put your main code here, to run repeatedly:
   char keypressed;
@@ -109,6 +114,8 @@ void loop() {
       writeLCD(0, "Choose method:");
       writeLCD(1, "1)Wire 2)Code 3)Both");
       writeLCD(2, "4)Simple 5)Flag");
+      reset_lights();
+      digitalWrite(SAFETY_LED, HIGH);
       keypressed = getKey();
       if (keypressed == '1') {
         deactivationMethod = 1;//Wire
@@ -164,8 +171,10 @@ void loop() {
         lcd.clear();
       } else if (keypressed == '5') {
         lcd.clear();
-        writeLCD(0, "not yet implemented");
+        writeLCD(0, "OK, game on!");
+        bombState = 5; //domination
         delay(1000);
+        lcd.clear();
       } else {
         lcd.clear();
         writeLCD(0, "Invalid option");
@@ -174,6 +183,8 @@ void loop() {
       break;
 
     case 1: // pre-plant
+      digitalWrite(SAFETY_LED, LOW);
+      digitalWrite(GREEN_LED, HIGH);
       preplant();
       break;
 
@@ -183,15 +194,104 @@ void loop() {
       break;
 
     case 3: // defused
+      reset_lights();
+      digitalWrite(RED_LED, HIGH);
+      digitalWrite(SAFETY_LED, HIGH);
+      digitalWrite(GREEN_LED, HIGH);
       button_noises();
       break;
 
     case 4: //exploded
+      reset_lights();
+      digitalWrite(RED_LED, HIGH);
       break;
-
+    case 5:
+      domination();
+      break;
     default:
       writeLCD(1, "ERRORING TO DEFAULT");
       break;
+  }
+}
+
+void domination() {
+  int controlling = 0; //0 = neutral, 1 = red, 2 = green 
+  int controlseconds[] = {0, 0, 0};
+  String targets[] = {"neutral", "red", "green"};
+  long unsigned lasttick;
+  bool controlChanged = true;
+  lcd.clear();
+  writeLCD(0, "DOMINATION");  
+  writeLCD(2, "00:00   00:00  00:00");
+  writeLCD(3, "NTR     RED    GRN  ");
+  while (true) {
+    bool SAFETYstate = !digitalRead(SAFETY_SW);
+    bool ARMState = !digitalRead(RED_SW);
+    bool DISARMState= !digitalRead(GREEN_SW);
+    if (SAFETYstate && controlling != 0) {
+      controlling = 0;
+      controlChanged = true;
+      reset_lights();
+      digitalWrite(SAFETY_LED, HIGH);
+    }
+    if (ARMState && controlling != 1) {
+      controlling = 1;
+      controlChanged = true;
+      reset_lights();
+      digitalWrite(RED_LED, HIGH);
+    }
+    if (DISARMState && controlling != 2) {
+      controlling = 2;
+      controlChanged = true;
+      reset_lights();
+      digitalWrite(GREEN_LED, HIGH);
+    }
+    if (controlChanged) {
+      lasttick = millis();
+      writeLCD(1, "CURRENT: " + targets[controlling]);
+      controlChanged = false;
+    }
+    if (millis() > (lasttick + 1000)) {
+      controlseconds[controlling] += 1;
+      /* int hsecondsleft = (long)((targetTime + bombDuration) - millis()) / 500;
+      int secondsleft = hsecondsleft / 2;
+      if (hsecondsleft != lastseconds) {
+        String ssleft = (String)(secondsleft % 60);
+        if (ssleft.length() < 2) {
+          ssleft = "0" + ssleft;
+        }
+      writeLCD(1, "    " + (String)((int)(secondsleft / 60)) + ":" + ssleft); */
+      String ntrmin = (String)((int)controlseconds[0] / 60);
+      if (ntrmin.length() < 2) {
+        ntrmin = "0" + ntrmin;
+      }
+      String ntrsec = (String)((int)controlseconds[0] % 60);
+      if (ntrsec.length() < 2) {
+        ntrsec = "0" + ntrsec;
+      }
+      String redmin = (String)((int)controlseconds[1] / 60);
+      if (redmin.length() < 2) {
+        redmin = "0" + redmin;
+      }
+      String redsec = (String)((int)controlseconds[1] % 60);
+      if (redsec.length() < 2) {
+        redsec = "0" + redsec;
+      }
+      String grnmin = (String)((int)controlseconds[2] / 60);
+      if (grnmin.length() < 2) {
+        grnmin = "0" + grnmin;
+      }
+      String grnsec = (String)((int)controlseconds[2] % 60);
+      if (grnsec.length() < 2) {
+        grnsec = "0" + grnsec;
+      }
+      
+      
+      writeLCD(2, ntrmin+":"+ntrsec+"   "+redmin+":"+redsec+"  "+grnmin+":"+grnsec);
+      lasttick = millis();
+      tone(HIGHBEEP, 2800, 50*(controlling+1));
+      
+    }
   }
 }
 
@@ -200,7 +300,7 @@ void button_noises() {
    bool ARMState = !digitalRead(RED_SW);
    bool DISARMState= !digitalRead(GREEN_SW);
    if (SAFETYstate || ARMState || DISARMState) {
-    tone(LOWBEEP, 100);
+    tone(LOWBEEP, 3000);
    } else {
     noTone(LOWBEEP);
    }
@@ -214,7 +314,7 @@ char getKey() {
     while (customKeypad.available()) {
       keypadEvent e = customKeypad.read();
       if (e.bit.EVENT == KEY_JUST_PRESSED) {
-        tone(LOWBEEP, 1000, 50);
+        tone(LOWBEEP, 3000, 50);
         key = (char)e.bit.KEY;
         nokey = false;
       }
@@ -378,6 +478,7 @@ void setBombTime() {
   bombDuration = tempcode.toInt() * 60 * 1000;
 }
 void preplant() {
+  digitalWrite(GREEN_LED, HIGH);
   bool planted = false;
   writeLCD(0, "-Waiting for plant--");
   if (plantWithCode) {
@@ -412,7 +513,10 @@ void preplant() {
       int seconds = round(diff / 1000);
       int secondsleft = plantTime - seconds;
       if (secondsleft != lastseconds && pressedAt > 0 && diff <= plantTime * 1000) {
-        tone(LOWBEEP, 1000, 50);
+        tone(LOWBEEP, 3000, 100);
+        digitalWrite(SAFETY_LED, HIGH);
+        delay(200);
+        digitalWrite(SAFETY_LED, LOW);
         lastseconds = secondsleft;
       }
       if (secondsleft >= 0  && pressedAt > 0) {
@@ -421,7 +525,10 @@ void preplant() {
       if (diff > plantTime * 1000 && pressedAt > 0) {
         readytoplant = true;
         writeLCD(2, "RELEASE TO PLANT");
-        tone(LOWBEEP, 1000);
+        digitalWrite(GREEN_LED, HIGH);
+        digitalWrite(SAFETY_LED, HIGH);
+        digitalWrite(RED_LED, HIGH);
+        tone(LOWBEEP, 3000);
       }
       if (buttonReleased) {
         if (diff > plantTime * 1000 && readytoplant) {
@@ -429,14 +536,18 @@ void preplant() {
           lcd.clear();
           delay(100);
           writeLCD(0, " PLANTED");
+          reset_lights();
           planted = true;
           bombState = 2;
           delay(1000);
         } else {
           writeLCD(2, "PRESS SAFETY+RED");
           if ((lastbeep+2000) < millis()) {
-            tone(LOWBEEP, 2000, 20);
+            tone(LOWBEEP, 3000, 75);
             lastbeep = millis();
+            digitalWrite(SAFETY_LED, HIGH);
+            delay(100);
+            digitalWrite(SAFETY_LED, LOW);
           }
         }
         pressedAt = 0;
@@ -446,7 +557,7 @@ void preplant() {
       while (customKeypad.available()) {
         keypadEvent e = customKeypad.read();
         if (e.bit.EVENT == KEY_JUST_PRESSED) {
-          tone(LOWBEEP, 1000, 50);
+          tone(LOWBEEP, 3000, 50);
           char temp = (char)e.bit.KEY;
           if (temp == '#' && plantcode.length() > 2) {
             if (plantcode == deactivationCode) {
@@ -469,8 +580,11 @@ void preplant() {
         }
       }
       if ((lastbeep+2000) < millis()) {
-        tone(LOWBEEP, 1000, 20);
+        tone(LOWBEEP, 3000, 75);
         lastbeep = millis();
+        digitalWrite(SAFETY_LED, HIGH);
+        delay(100);
+        digitalWrite(SAFETY_LED, LOW);
       }
     }
   }
@@ -479,6 +593,8 @@ void preplant() {
 
 bool armed = true;
 void bombactive() {
+  reset_lights();
+  digitalWrite(SAFETY_LED, HIGH);
   targetTime = millis();
   int lastseconds = -1;
   writeLCD(0, "BOMB ARMED");
@@ -591,7 +707,7 @@ void checksimple() {
         int seconds = round(diff / 1000);
         int secondsleft = (defuseTime) - seconds;
         if (secondsleft != lastDefuseSeconds && defusePressedAt > 0 && diff <= (defuseTime) * 1000) {
-          tone(LOWBEEP, 1000, 50);
+          tone(LOWBEEP, 3000, 50);
           lastDefuseSeconds = secondsleft;
         }
         if (secondsleft >= 0  && defusePressedAt > 0) {
@@ -604,7 +720,7 @@ void checksimple() {
             (3, "DEFUSE COMPLETE");
             readymsg = true;
           }
-          tone(LOWBEEP, 100);
+          tone(LOWBEEP, 3000);
         } else {
           readymsg = false;
         }
@@ -648,7 +764,7 @@ void checkcode() {
         while (customKeypad.available()) {
           keypadEvent e = customKeypad.read();
           if (e.bit.EVENT == KEY_JUST_PRESSED) {
-            tone(LOWBEEP, 1000, 50);
+            tone(LOWBEEP, 3000, 50);
             char temp = (char)e.bit.KEY;
             if (temp == '#' && enteredcode.length() > 2) {
               if (enteredcode == deactivationCode) {
@@ -686,7 +802,7 @@ void checkcode() {
         int seconds = round(diff / 1000);
         int secondsleft = (defuseTime * deactivationCode.length()) - seconds;
         if (secondsleft != lastDefuseSeconds && defusePressedAt > 0 && diff <= (defuseTime * deactivationCode.length()) * 1000) {
-          tone(LOWBEEP, 1000, 50);
+          tone(LOWBEEP, 3000, 50);
           lastDefuseSeconds = secondsleft;
         }
         if (secondsleft >= 0  && defusePressedAt > 0) {
@@ -703,7 +819,7 @@ void checkcode() {
             (3, "DECODE COMPLETE");
             readymsg = true;
           }
-          tone(LOWBEEP, 100);
+          tone(LOWBEEP, 3000);
         } else {
           readymsg = false;
         }
@@ -714,11 +830,11 @@ void checkcode() {
 void halftime() {
    long msleft = (long)((targetTime + bombDuration) - millis());
    targetTime -= (msleft / 2);
-   tone(LOWBEEP, 1000, 50);
+   tone(LOWBEEP, 3000, 50);
    delay(100);
-   tone(LOWBEEP, 1000, 50);
+   tone(LOWBEEP, 3000, 50);
    delay(100);
-   tone(LOWBEEP, 1000, 50);
+   tone(LOWBEEP, 3000, 50);
 }
 void explodesound() {
   for(int i = 0;i<10;i++){
