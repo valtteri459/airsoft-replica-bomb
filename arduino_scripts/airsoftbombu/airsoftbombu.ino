@@ -14,7 +14,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <SPI.h>
 
-LiquidCrystal_I2C lcd(0x3F, 20, 4);
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 String deactivationCode = "";
 int deactivationMethod = 0;
@@ -51,6 +51,7 @@ Adafruit_Keypad customKeypad = Adafruit_Keypad( makeKeymap(keys), rowPins, colPi
 
 void setup() {
   // put your setup code here, to run once:
+  Serial.begin(9600);
   pinMode(SAFETY_SW, INPUT_PULLUP);
   pinMode(GREEN_SW, INPUT_PULLUP);
   pinMode(RED_SW, INPUT_PULLUP);
@@ -92,6 +93,7 @@ void setup() {
   lcd.setCursor(0, 0);
   lcd.clear();
   customKeypad.begin();
+  Serial.write("setup complete");
 }
 /*if(digitalRead(SAFETY_SW)){
       digitalWrite(SAFETY_LED, HIGH);
@@ -215,6 +217,7 @@ void loop() {
 void domination() {
   int controlling = 0; //0 = neutral, 1 = red, 2 = green 
   int controlseconds[] = {0, 0, 0};
+  long unsigned switchStarted = 0;
   String targets[] = {"neutral", "red", "green"};
   long unsigned lasttick;
   bool controlChanged = true;
@@ -226,28 +229,33 @@ void domination() {
     bool SAFETYstate = !digitalRead(SAFETY_SW);
     bool ARMState = !digitalRead(RED_SW);
     bool DISARMState= !digitalRead(GREEN_SW);
-    if (SAFETYstate && controlling != 0) {
-      controlling = 0;
-      controlChanged = true;
-      reset_lights();
-      digitalWrite(SAFETY_LED, HIGH);
-    }
-    if (ARMState && controlling != 1) {
-      controlling = 1;
-      controlChanged = true;
-      reset_lights();
-      digitalWrite(RED_LED, HIGH);
-    }
-    if (DISARMState && controlling != 2) {
-      controlling = 2;
-      controlChanged = true;
-      reset_lights();
-      digitalWrite(GREEN_LED, HIGH);
-    }
-    if (controlChanged) {
-      lasttick = millis();
-      writeLCD(1, "CURRENT: " + targets[controlling]);
-      controlChanged = false;
+    if (SAFETYstate || ARMState || DISARMState) {
+      if(switchStarted == 0) {
+        switchStarted = millis();
+      }  
+      if (SAFETYstate && controlling != 0) {
+        controlling = 0;
+        controlChanged = true;
+        reset_lights();
+        digitalWrite(SAFETY_LED, HIGH);
+      } else if (ARMState && controlling != 1 && millis() > (switchStarted+5000)) {
+        controlling = 1;
+        controlChanged = true;
+        reset_lights();
+        digitalWrite(RED_LED, HIGH);
+      } else if (DISARMState && controlling != 2 && millis() > (switchStarted+5000)) {
+        controlling = 2;
+        controlChanged = true;
+        reset_lights();
+        digitalWrite(GREEN_LED, HIGH);
+      }
+      if (controlChanged) {
+        lasttick = millis();
+        writeLCD(1, "CURRENT: " + targets[controlling]);
+        controlChanged = false;
+      }
+    } else {
+      switchStarted = 0;
     }
     if (millis() > (lasttick + 1000)) {
       controlseconds[controlling] += 1;
@@ -287,7 +295,7 @@ void domination() {
       
       writeLCD(2, ntrmin+":"+ntrsec+"   "+redmin+":"+redsec+"  "+grnmin+":"+grnsec);
       lasttick = millis();
-      tone(HIGHBEEP, 2800, 50*(controlling+1));
+      tone(HIGHBEEP, 2800, 50*(controlling+4));
       
     }
   }
@@ -919,6 +927,8 @@ bool wirestate(int index) {
 
 
 void writeLCD (int row, String message) {
+  Serial.write("Sending string\n");
+  Serial.write(message[0]);
   lcd.setCursor(0, row);
   for (int i = message.length(); i <= 19; i++) {
     message += ' ';
