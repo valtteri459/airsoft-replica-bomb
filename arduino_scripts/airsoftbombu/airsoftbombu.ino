@@ -699,14 +699,15 @@ void checksimple() {
           noTone(LOWBEEP);
         }
         if (defusePressedAt > 0) {
-          if (round((millis() - defusePressedAt) / 1000) > defuseTime) {
+          if (round((millis() - defusePressedAt) / 1000) > (defuseTime-1)) {
               writeLCD(0, "BOMB DEFUSED");
               writeLCD(3, "CORRECT! DEFUSED!");
               armed = false;
               bombState = 3;
           } else {
+            defusePressedAt = 0;
             writeLCD(0, "DEFUSE FAILED");
-            writeLCD(3, "TRY AGAIN - HOLD LONGER");
+            writeLCD(3, "HOLD LONGER ");
           }
         }
       } else if (defuseTime > 0) {
