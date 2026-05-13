@@ -27,6 +27,8 @@ unsigned long bombDuration = 60000;
 unsigned long targetTime = 0;
 bool plantWithCode = false;
 
+int flagModeTime = 0;
+
 
 #define SAFETY_SW 22
 #define SAFETY_LED 24
@@ -44,7 +46,7 @@ bool plantWithCode = false;
 #define WIRE6 35
 #define WIRE7 33
 
-#define LOWBEEP 12
+#define LOWBEEP 2
 #define HIGHBEEP 2
 
 Adafruit_Keypad customKeypad = Adafruit_Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS);
@@ -116,6 +118,7 @@ void loop() {
       writeLCD(0, "Choose method:");
       writeLCD(1, "1)Wire 2)Code 3)Both");
       writeLCD(2, "4)Simple 5)Flag");
+      writeLCD(3, "6)CTF, countdown");
       reset_lights();
       digitalWrite(SAFETY_LED, HIGH);
       keypressed = getKey();
@@ -177,7 +180,14 @@ void loop() {
         bombState = 5; //domination
         delay(1000);
         lcd.clear();
-      } else {
+      } else if (keypressed == '6') {
+        setFlagTime();
+        lcd.clear();
+        writeLCD(0, "OK, game on!");
+        bombState = 6; // domination 2, count down
+        delay(1000);
+        lcd.clear();
+      }else {
         lcd.clear();
         writeLCD(0, "Invalid option");
         delay(1000);
@@ -207,6 +217,9 @@ void loop() {
       break;
     case 5:
       domination();
+      break;
+    case 6:
+      ctf();
       break;
     default:
       writeLCD(1, "ERRORING TO DEFAULT");
@@ -301,6 +314,117 @@ void domination() {
   }
 }
 
+void ctf() {
+  int controlling = 0; //0 = neutral, 1 = red, 2 = green 
+  int controlseconds[] = {0, 0, 0};
+  long unsigned switchStarted = 0;
+  String targets[] = {"neutral", "red", "yellow"};
+  long unsigned lasttick;
+  bool controlChanged = true;
+  lcd.clear();
+  writeLCD(0, "CTF");  
+  writeLCD(2, "00:00   00:00  00:00");
+  writeLCD(3, "NTR     RED    YLW  ");
+  while (true) {
+    bool SAFETYstate = !digitalRead(SAFETY_SW);
+    bool ARMState = !digitalRead(RED_SW);
+    bool DISARMState= !digitalRead(GREEN_SW);
+    if (SAFETYstate || ARMState || DISARMState) {
+      if(switchStarted == 0) {
+        switchStarted = millis();
+      }  
+      if (SAFETYstate && controlling != 0) {
+        controlling = 0;
+        controlChanged = true;
+        reset_lights();
+        digitalWrite(SAFETY_LED, HIGH);
+      } else if (ARMState && controlling != 1 && millis() > (switchStarted+5000)) {
+        controlling = 1;
+        controlChanged = true;
+        reset_lights();
+        digitalWrite(RED_LED, HIGH);
+      } else if (DISARMState && controlling != 2 && millis() > (switchStarted+5000)) {
+        controlling = 2;
+        controlChanged = true;
+        reset_lights();
+        digitalWrite(GREEN_LED, HIGH);
+      }
+      if (controlChanged) {
+        lasttick = millis();
+        writeLCD(1, "CURRENT: " + targets[controlling]);
+        controlChanged = false;
+      }
+    } else {
+      switchStarted = 0;
+    }
+    if (millis() > (lasttick + 1000)) {
+      controlseconds[controlling] += 1;
+      /* int hsecondsleft = (long)((targetTime + bombDuration) - millis()) / 500;
+      int secondsleft = hsecondsleft / 2;
+      if (hsecondsleft != lastseconds) {
+        String ssleft = (String)(secondsleft % 60);
+        if (ssleft.length() < 2) {
+          ssleft = "0" + ssleft;
+        }
+      writeLCD(1, "    " + (String)((int)(secondsleft / 60)) + ":" + ssleft); */
+      if(controlseconds[1] >= flagModeTime) {
+        //red won
+        ctf_red_win();
+      }
+      if(controlseconds[2] >= flagModeTime) {
+        //yellow won
+        ctf_yellow_win();
+      }
+      String ntrmin = (String)((int)controlseconds[0] / 60);
+      if (ntrmin.length() < 2) {
+        ntrmin = "0" + ntrmin;
+      }
+      String ntrsec = (String)((int)controlseconds[0] % 60);
+      if (ntrsec.length() < 2) {
+        ntrsec = "0" + ntrsec;
+      }
+      String redmin = (String)((int)((flagModeTime - controlseconds[1]) / 60));
+      if (redmin.length() < 2) {
+        redmin = "0" + redmin;
+      }
+      String redsec = (String)((int)((flagModeTime-controlseconds[1]) % 60));
+      if (redsec.length() < 2) {
+        redsec = "0" + redsec;
+      }
+      String grnmin = (String)((int)((flagModeTime-controlseconds[2]) / 60));
+      if (grnmin.length() < 2) {
+        grnmin = "0" + grnmin;
+      }
+      String grnsec = (String)((int)((flagModeTime-controlseconds[2]) % 60));
+      if (grnsec.length() < 2) {
+        grnsec = "0" + grnsec;
+      }
+      
+      
+      writeLCD(2, ntrmin+":"+ntrsec+"   "+redmin+":"+redsec+"  "+grnmin+":"+grnsec);
+      lasttick = millis();
+      tone(HIGHBEEP, 2800, 50*(controlling+4));
+      
+    }
+  }
+}
+
+void ctf_red_win() {
+  lcd.clear();
+  writeLCD(0, "RED WINS!");
+  while (true) {
+    delay(1000);
+  }
+}
+
+void ctf_yellow_win() {
+  lcd.clear();
+  writeLCD(0, "YELLOW WINS!");
+  while (true) {
+    delay(1000);
+  }
+}
+
 void button_noises() {
    bool SAFETYstate = !digitalRead(SAFETY_SW);
    bool ARMState = !digitalRead(RED_SW);
@@ -353,6 +477,30 @@ void setDefuseTime() {
   defuseTime = tempcode.toInt();
   lcd.clear();
 }
+
+void setFlagTime() {
+  bool okCode = false;
+  String tempcode = "60";
+  lcd.clear();
+  writeLCD(0, "flag timer(seconds):");
+  writeLCD(1, tempcode);
+  while (!okCode) {
+    char temp = getKey();
+    if (temp == '#' && tempcode.length() > 0) {
+
+      okCode = true;
+    } else if (temp == '*') {
+      tempcode = tempcode.substring(0, tempcode.length() - 1);
+      writeLCD(1, tempcode);
+    } else {
+      tempcode += temp;
+      writeLCD(1, tempcode);
+    }
+  }
+  flagModeTime = tempcode.toInt();
+  lcd.clear();
+}
+
 void setPlantMode() {
   bool okCode = false;
   while (!okCode) {
